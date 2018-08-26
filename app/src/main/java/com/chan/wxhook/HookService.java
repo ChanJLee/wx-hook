@@ -44,7 +44,7 @@ public class HookService extends AccessibilityService {
 		}
 
 		clickedNode(root, "通讯录");
-		clickedNode(root, "新的朋友", 2000);
+		clickedNode(root, "新的朋友", 2000, true);
 	}
 
 	private void handleFMessageConversationUI() {
@@ -55,6 +55,7 @@ public class HookService extends AccessibilityService {
 			return;
 		}
 		clickedNode(root, "添加朋友");
+		root.recycle();
 	}
 
 	private void handleAddMoreFriendsUI() {
@@ -65,10 +66,30 @@ public class HookService extends AccessibilityService {
 			return;
 		}
 		clickedNode(root, "手机联系人");
+		root.recycle();
 	}
 
 	private void handleMobileFriendUI() {
 		Log.d(TAG, "handleMobileFriendUI");
+		final AccessibilityNodeInfo root = getRootInActiveWindow();
+		List<AccessibilityNodeInfo> scrollViews = root.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bcs");
+		if (scrollViews == null || scrollViews.isEmpty()) {
+			return;
+		}
+
+		AccessibilityNodeInfo scrollView = scrollViews.get(scrollViews.size() - 1);
+		for (int i = 0; i < scrollView.getChildCount(); ++i) {
+			AccessibilityNodeInfo item = scrollView.getChild(i);
+			List<AccessibilityNodeInfo> contacts = item.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bgl");
+			List<AccessibilityNodeInfo> nicknames = item.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bgm");
+			if (contacts == null || nicknames == null || contacts.isEmpty() || nicknames.isEmpty()) {
+				continue;
+			}
+
+			Log.d(TAG, contacts.get(contacts.size() - 1).getText() + " - " + nicknames.get(nicknames.size() - 1).getText());
+		}
+
+		root.recycle();
 	}
 
 	@Override
@@ -77,12 +98,15 @@ public class HookService extends AccessibilityService {
 	}
 
 	private void clickedNode(AccessibilityNodeInfo root, String text) {
-		clickedNode(root, text, 0);
+		clickedNode(root, text, 0, false);
 	}
 
-	private void clickedNode(final AccessibilityNodeInfo root, final String text, long delay) {
+	private void clickedNode(final AccessibilityNodeInfo root, final String text, long delay, final boolean recycle) {
 		if (delay <= 0) {
 			doClickedNode(root, text);
+			if (recycle) {
+				root.recycle();
+			}
 			return;
 		}
 
@@ -90,6 +114,9 @@ public class HookService extends AccessibilityService {
 			@Override
 			public void run() {
 				doClickedNode(root, text);
+				if (recycle) {
+					root.recycle();
+				}
 			}
 		}, delay);
 	}
