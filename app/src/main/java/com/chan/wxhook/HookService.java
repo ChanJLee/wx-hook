@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -86,7 +87,7 @@ public class HookService extends AccessibilityService {
 				continue;
 			}
 
-			Log.d(TAG, contacts.get(contacts.size() - 1).getText() + " - " + nicknames.get(nicknames.size() - 1).getText());
+			Toast.makeText(this, contacts.get(contacts.size() - 1).getText() + " - " + nicknames.get(nicknames.size() - 1).getText(), Toast.LENGTH_SHORT).show();
 		}
 
 		root.recycle();
