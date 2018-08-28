@@ -8,11 +8,14 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Toast;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class HookService extends AccessibilityService {
 	private static final String TAG = "HookService";
 	private Handler mHandler;
+	private Map<String, Info> mMap = new HashMap<>();
 
 	@Override
 	public void onCreate() {
@@ -79,6 +82,8 @@ public class HookService extends AccessibilityService {
 		}
 
 		AccessibilityNodeInfo scrollView = scrollViews.get(scrollViews.size() - 1);
+		Log.d(TAG, "can scroll: " + scrollView.isScrollable());
+
 		for (int i = 0; i < scrollView.getChildCount(); ++i) {
 			AccessibilityNodeInfo item = scrollView.getChild(i);
 			List<AccessibilityNodeInfo> contacts = item.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bgl");
@@ -87,7 +92,10 @@ public class HookService extends AccessibilityService {
 				continue;
 			}
 
-			Toast.makeText(this, contacts.get(contacts.size() - 1).getText() + " - " + nicknames.get(nicknames.size() - 1).getText(), Toast.LENGTH_SHORT).show();
+			String contactsName = String.valueOf(contacts.get(contacts.size() - 1).getText());
+			if (!mMap.containsKey(contactsName)) {
+				mMap.put(contactsName, new Info(String.valueOf(nicknames.get(nicknames.size() - 1).getText()), contactsName));
+			}
 		}
 
 		root.recycle();
