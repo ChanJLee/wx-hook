@@ -21,7 +21,8 @@ import android.widget.Toast;
 public class MainActivity extends AppCompatActivity {
 
 	private static final String PERMISSION_LIST[] = {
-			Manifest.permission.READ_CONTACTS
+			Manifest.permission.READ_CONTACTS,
+			Manifest.permission.WRITE_EXTERNAL_STORAGE,
 	};
 
 	private static final int PERMISSION_REQUEST_CODE = 0x0525;

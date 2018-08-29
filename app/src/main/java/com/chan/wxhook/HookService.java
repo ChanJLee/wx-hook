@@ -1,13 +1,17 @@
 package com.chan.wxhook;
 
 import android.accessibilityservice.AccessibilityService;
+import android.os.Environment;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.widget.Toast;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,17 +88,44 @@ public class HookService extends AccessibilityService {
 		AccessibilityNodeInfo scrollView = scrollViews.get(scrollViews.size() - 1);
 		Log.d(TAG, "can scroll: " + scrollView.isScrollable());
 
-		for (int i = 0; i < scrollView.getChildCount(); ++i) {
-			AccessibilityNodeInfo item = scrollView.getChild(i);
-			List<AccessibilityNodeInfo> contacts = item.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bgl");
-			List<AccessibilityNodeInfo> nicknames = item.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bgm");
-			if (contacts == null || nicknames == null || contacts.isEmpty() || nicknames.isEmpty()) {
-				continue;
-			}
+		do {
+			for (int i = 0; i < scrollView.getChildCount(); ++i) {
+				AccessibilityNodeInfo item = scrollView.getChild(i);
+				List<AccessibilityNodeInfo> contacts = item.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bgl");
+				List<AccessibilityNodeInfo> nicknames = item.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/bgm");
+				if (contacts == null || nicknames == null || contacts.isEmpty() || nicknames.isEmpty()) {
+					continue;
+				}
 
-			String contactsName = String.valueOf(contacts.get(contacts.size() - 1).getText());
-			if (!mMap.containsKey(contactsName)) {
-				mMap.put(contactsName, new Info(String.valueOf(nicknames.get(nicknames.size() - 1).getText()), contactsName));
+				String contactsName = String.valueOf(contacts.get(contacts.size() - 1).getText());
+				if (!mMap.containsKey(contactsName)) {
+					String nickname = String.valueOf(nicknames.get(nicknames.size() - 1).getText());
+					nickname = nickname.replaceAll("微信:", "");
+					mMap.put(contactsName, new Info(nickname, contactsName));
+				}
+			}
+			Log.d(TAG, "size -> " + mMap.size());
+		} while (scrollView.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD));
+
+		File file = new File(Environment.getExternalStorageDirectory(), "output.txt");
+		BufferedWriter bufferedWriter = null;
+		try {
+			bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			bufferedWriter.write("[");
+			for (Info info : mMap.values()) {
+				bufferedWriter.write(String.format("{\"contacts\": \"%s\", \"nickname\": \"%s\"},", info.contacts, info.nickname));
+			}
+			bufferedWriter.write("]");
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (bufferedWriter != null) {
+					bufferedWriter.flush();
+					bufferedWriter.close();
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
 
