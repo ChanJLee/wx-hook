@@ -18,6 +18,13 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class MainActivity extends AppCompatActivity {
 
 	private static final String PERMISSION_LIST[] = {
@@ -26,7 +33,8 @@ public class MainActivity extends AppCompatActivity {
 	};
 
 	private static final int PERMISSION_REQUEST_CODE = 0x0525;
-	private static final String TAG = "chan_debug";
+	private static final String TAG = "HookService";
+	private Set<String> mContacts = new HashSet<>();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -50,8 +58,13 @@ public class MainActivity extends AppCompatActivity {
 			return;
 		}
 
-		Toast.makeText(this, "服务打开成功", Toast.LENGTH_SHORT).show();
 		fetchContacts();
+
+		List<String> contacts = new ArrayList<>(mContacts);
+		Intent intent = new Intent(HookService.HOOK_ACTION);
+		intent.putExtra(HookService.EXTRA_CONTACTS, new Gson().toJson(contacts));
+		sendBroadcast(intent);
+		Toast.makeText(this, "已经尝试发送任务", Toast.LENGTH_SHORT).show();
 	}
 
 	private boolean checkAccessibilityEnable() {
@@ -143,8 +156,9 @@ public class MainActivity extends AppCompatActivity {
 					//因为每个联系人可能有多个电话号码，所以需要遍历
 					if (phonesCursor != null && phonesCursor.moveToFirst()) {
 						do {
-							String num = phonesCursor.getString(0);
+							String num = phonesCursor.getString(0).replaceAll(" ", "");
 							Log.d(TAG, id + " " + name + " " + num);
+							mContacts.add(num);
 						} while (phonesCursor.moveToNext());
 					}
 				} while (cursor.moveToNext());
