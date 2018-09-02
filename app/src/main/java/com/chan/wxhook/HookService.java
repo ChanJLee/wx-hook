@@ -17,10 +17,15 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import java.io.BufferedWriter;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +34,9 @@ import java.util.Map;
 public class HookService extends AccessibilityService {
 	public static final String HOOK_READ_CONTACT_ACTION = "com.chan.wxhook.contact";
 	public static final String HOOK_SYNC_WX_ACTION = "com.chan.wxhook.syncData";
+
+	private static final String EXCEL_XLS = "xls";
+	private static final String EXCEL_XLSX = "xlsx";
 
 	public static final String EXTRA_CONTACTS = "contacts";
 
@@ -224,25 +232,8 @@ public class HookService extends AccessibilityService {
 
 	private void syncData() {
 		Log.d(TAG, "syncData");
-		String json = new Gson().toJson(mMap);
-		File file = new File(Environment.getExternalStorageDirectory(), "output.txt");
-		BufferedWriter bufferedWriter = null;
-		try {
-			bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
-			bufferedWriter.write(json);
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				if (bufferedWriter != null) {
-					bufferedWriter.flush();
-					bufferedWriter.close();
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		Log.d(TAG, "sync data");
+		saveExcelFile();
+		Log.d(TAG, "syncData success");
 	}
 
 	@Override
@@ -346,6 +337,72 @@ public class HookService extends AccessibilityService {
 
 			Log.d(TAG, "receive contacts, size: " + mContacts.size());
 			Toast.makeText(HookService.this, "打开成功", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void saveExcelFile() {
+
+		//New Workbook
+		Workbook wb = new HSSFWorkbook();
+
+		//New Sheet
+		Sheet sheet = wb.createSheet("myOrder");
+
+		// Generate column headings
+		Row row = sheet.createRow(0);
+		Cell c = row.createCell(0);
+		c.setCellValue("联系人");
+
+		c = row.createCell(1);
+		c.setCellValue("昵称");
+
+		c = row.createCell(2);
+		c.setCellValue("个性签名");
+
+		c = row.createCell(3);
+		c.setCellValue("性别");
+
+		List<Info> dataList = new ArrayList<>(mMap.values());
+		for (int j = 0; j < dataList.size(); j++) {
+			// 创建一行：从第二行开始，跳过属性列
+			row = sheet.createRow(j + 1);
+			// 得到要插入的每一条记录
+			Info info = dataList.get(j);
+			for (int k = 0; k <= 4; k++) {
+				// 在一行内循环
+				Cell cell = row.createCell(0);
+				cell.setCellValue(info.contacts);
+
+				cell = row.createCell(1);
+				cell.setCellValue(info.nickname);
+
+				cell = row.createCell(2);
+				cell.setCellValue(info.extraInfo);
+
+				cell = row.createCell(3);
+				cell.setCellValue(info.gender);
+			}
+		}
+
+		File file = new File(Environment.getExternalStorageDirectory(), "output.xls");
+		// Create a path where we will place our List of objects on external storage
+		FileOutputStream os = null;
+
+		try {
+			os = new FileOutputStream(file);
+			wb.write(os);
+			Log.d(TAG, "Writing file" + file);
+		} catch (IOException e) {
+			Log.d(TAG, "Error writing " + file, e);
+		} catch (Exception e) {
+			Log.d(TAG, "Failed to save file", e);
+		} finally {
+			try {
+				if (null != os)
+					os.close();
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
 		}
 	}
 }

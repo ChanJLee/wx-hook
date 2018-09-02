@@ -68,9 +68,8 @@ public class MainActivity extends AppCompatActivity {
 
 		fetchContacts();
 
-		//List<String> contacts = new ArrayList<>(mContacts);
-		List<String> contacts = new ArrayList<>();
-		contacts.add("13272435566");
+		List<String> contacts = new ArrayList<>(mContacts);
+//		List<String> contacts = new ArrayList<>();
 		Intent intent = new Intent(HookService.HOOK_READ_CONTACT_ACTION);
 		intent.putExtra(HookService.EXTRA_CONTACTS, new Gson().toJson(contacts));
 		sendBroadcast(intent);

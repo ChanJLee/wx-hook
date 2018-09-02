@@ -26,6 +26,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation 'com.google.code.gson:gson:2.3.1'
-    implementation "org.apache.poi:poi:3.16"
+    implementation "org.apache.poi:poi:3.15"
     implementation "org.apache.poi:poi-ooxml:3.14"
+    implementation 'com.fasterxml:aalto-xml:1.0.0'
 }
