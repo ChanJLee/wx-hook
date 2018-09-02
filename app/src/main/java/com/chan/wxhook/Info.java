@@ -5,4 +5,5 @@ public class Info {
 	public String contacts;
 	public String gender;
 	public String extraInfo;
+	public int index = -1;
 }

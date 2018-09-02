@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">WXHook</string>
-    <string name="accessibility_service_description">hook wx</string>
+    <string name="accessibility_service_description">hook wx 通讯录</string>
 </resources>

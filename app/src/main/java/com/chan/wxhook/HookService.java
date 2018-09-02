@@ -72,13 +72,14 @@ public class HookService extends AccessibilityService {
 			handleLauncherUI();
 		} else if (TextUtils.equals("com.tencent.mm.plugin.subapp.ui.friend.FMessageConversationUI", pageName)) {
 			handleFMessageConversationUI();
-		} else if (TextUtils.equals("com.tencent.mm.plugin.fts.ui.FTSAddFriendUI", pageName) ||
-				TextUtils.equals("com.tencent.mm.ui.base.p", pageName)) {
-			handleFTSAddFriendUI();
 		} else if (TextUtils.equals("com.tencent.mm.plugin.profile.ui.ContactInfoUI", pageName)) {
 			handleSearchSuccess();
 		} else if (TextUtils.equals("com.tencent.mm.plugin.profile.ui.ContactMoreInfoUI", pageName)) {
 			handleContactMoreInfo();
+		} else if (TextUtils.equals("com.tencent.mm.plugin.subapp.ui.pluginapp.AddMoreFriendsUI", pageName)) {
+			handleAddMoreFriendsUI();
+		} else if (TextUtils.equals("com.tencent.mm.plugin.account.bind.ui.MobileFriendUI", pageName)) {
+			handleMobileFriendUI();
 		}
 	}
 
@@ -102,59 +103,68 @@ public class HookService extends AccessibilityService {
 		clickedNodeByText(root, "新的朋友", 2000, true);
 	}
 
-	/**
-	 * 进入搜索好友
-	 */
-	private void handleFMessageConversationUI() {
-		Log.d(TAG, "handleFMessageConversationUI");
-		if (mContacts.isEmpty()) {
+	private void handleMobileFriendUI() {
+		Log.d(TAG, "handleMobileFriendUI");
+		final AccessibilityNodeInfo root = getRootInActiveWindow();
+		AccessibilityNodeInfo scrollView = findNodeById(root,"com.tencent.mm:id/bcs");
+		if (scrollView == null) {
+			Log.d(TAG, "find scroll view failed");
+			root.recycle();
 			return;
 		}
 
+		Log.d(TAG, "can scroll: " + scrollView.isScrollable());
+		if (mCurrentInfo == null) {
+			mCurrentInfo = new Info();
+		}
+
+		++mCurrentInfo.index;
+		if (mCurrentInfo.index < 0 || mCurrentInfo.index >= scrollView.getChildCount()) {
+			if (scrollView.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
+				syncData();
+				root.recycle();
+				return;
+			}
+			mCurrentInfo.index = 0;
+		}
+
+		AccessibilityNodeInfo target = scrollView.getChild(mCurrentInfo.index);
+		AccessibilityNodeInfo contacts = findNodeById(target, "com.tencent.mm:id/bgl");
+		if (contacts != null) {
+			mCurrentInfo.contacts = String.valueOf(contacts.getText());
+			mMap.put(mCurrentInfo.contacts, mCurrentInfo);
+		}
+
+		while (target != null && !target.isClickable()) {
+			target = target.getParent();
+		}
+
+		if (target != null) {
+			target.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+		}
+	}
+
+
+	private void handleFMessageConversationUI() {
+		Log.d(TAG, "handleFMessageConversationUI");
 		AccessibilityNodeInfo root = getRootInActiveWindow();
 		if (root == null) {
 			Log.d(TAG, "fetch node info failed");
 			return;
 		}
-		clickedNodeById(root, "com.tencent.mm:id/bf2");
+		clickedNodeByText(root, "添加朋友");
 		root.recycle();
 	}
 
-	/**
-	 * 搜索好友页面
-	 */
-	private void handleFTSAddFriendUI() {
-		Log.d(TAG, "handleFTSAddFriendUI");
-		if (mContacts.isEmpty()) {
-			syncData();
-			Toast.makeText(this, "finished", Toast.LENGTH_SHORT).show();
-			Log.d(TAG, "mContacts is empty");
-			return;
-		}
-
+	private void handleAddMoreFriendsUI() {
+		Log.d(TAG, "handleAddMoreFriendsUI");
 		AccessibilityNodeInfo root = getRootInActiveWindow();
-		AccessibilityNodeInfo inputNode = findNodeById(root, "com.tencent.mm:id/jd");
-		if (inputNode == null) {
-			root.recycle();
+		if (root == null) {
+			Log.d(TAG, "fetch node info failed");
 			return;
 		}
-
-		// 不断的从第一个联系人开始搜索
-		mCurrentInfo = new Info();
-		mCurrentInfo.contacts = mContacts.get(0);
-		mContacts.remove(0);
-		Bundle arguments = new Bundle();
-		arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, mCurrentInfo.contacts);
-		arguments.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_MOVEMENT_GRANULARITY_INT, AccessibilityNodeInfo.MOVEMENT_GRANULARITY_WORD);
-		arguments.putBoolean(AccessibilityNodeInfo.ACTION_ARGUMENT_EXTEND_SELECTION_BOOLEAN, true);
-		inputNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
-		inputNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
-		inputNode.performAction(AccessibilityNodeInfo.ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY, arguments);
-
-		mMap.put(mCurrentInfo.contacts, mCurrentInfo);
-		Log.d(TAG, "current -> " + mCurrentInfo.contacts);
-		String targetText = "搜索:" + mCurrentInfo.contacts;
-		clickedNodeByText(root, targetText, 200, true);
+		clickedNodeByText(root, "手机联系人");
+		root.recycle();
 	}
 
 	/**
