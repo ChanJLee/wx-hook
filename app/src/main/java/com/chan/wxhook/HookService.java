@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -13,9 +12,6 @@ import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Toast;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -43,7 +39,6 @@ public class HookService extends AccessibilityService {
 	private static final String TAG = "HookService";
 	private Handler mHandler;
 	private Info mCurrentInfo = new Info();
-	private List<String> mContacts = new ArrayList<>();
 	private HookBroadcast mHookBroadcast = new HookBroadcast();
 	private Map<String, Info> mMap = new HashMap<>();
 
@@ -89,10 +84,6 @@ public class HookService extends AccessibilityService {
 	private void handleLauncherUI() {
 		// 首页
 		Log.d(TAG, "handleLauncherUI");
-		if (mContacts.isEmpty()) {
-			return;
-		}
-
 		AccessibilityNodeInfo root = getRootInActiveWindow();
 		if (root == null) {
 			Log.d(TAG, "fetch node info failed");
@@ -106,7 +97,7 @@ public class HookService extends AccessibilityService {
 	private void handleMobileFriendUI() {
 		Log.d(TAG, "handleMobileFriendUI");
 		final AccessibilityNodeInfo root = getRootInActiveWindow();
-		AccessibilityNodeInfo scrollView = findNodeById(root,"com.tencent.mm:id/bcs");
+		AccessibilityNodeInfo scrollView = findNodeById(root, "com.tencent.mm:id/bcs");
 		if (scrollView == null) {
 			Log.d(TAG, "find scroll view failed");
 			root.recycle();
@@ -114,13 +105,17 @@ public class HookService extends AccessibilityService {
 		}
 
 		Log.d(TAG, "can scroll: " + scrollView.isScrollable());
+		Info info = new Info();
 		if (mCurrentInfo == null) {
-			mCurrentInfo = new Info();
+			mCurrentInfo = info;
 		}
 
-		++mCurrentInfo.index;
+		int index = mCurrentInfo.index + 1;
+		mCurrentInfo = info;
+		mCurrentInfo.index = index;
+		Log.d(TAG, "current index " + mCurrentInfo.index + " size " + scrollView.getChildCount());
 		if (mCurrentInfo.index < 0 || mCurrentInfo.index >= scrollView.getChildCount()) {
-			if (scrollView.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
+			if (!scrollView.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
 				syncData();
 				root.recycle();
 				return;
@@ -172,14 +167,14 @@ public class HookService extends AccessibilityService {
 	 */
 	private void handleSearchSuccess() {
 		Log.d(TAG, "handleSearchSuccess");
-		if (mCurrentInfo == null) {
+		if (mCurrentInfo == null || mCurrentInfo.end) {
 			Log.d(TAG, "mCurrentInfo is null");
 			performGlobalAction(GLOBAL_ACTION_BACK);
 			return;
 		}
 
 		AccessibilityNodeInfo root = getRootInActiveWindow();
-		AccessibilityNodeInfo nickname = findNodeById(root, "com.tencent.mm:id/art");
+		AccessibilityNodeInfo nickname = findNodeById(root, "com.tencent.mm:id/sm");
 		if (nickname != null && !TextUtils.isEmpty(nickname.getText())) {
 			mCurrentInfo.nickname = String.valueOf(nickname.getText()).replace("微信:", "");
 			Log.d(TAG, "nickname: " + mCurrentInfo.nickname);
@@ -190,7 +185,6 @@ public class HookService extends AccessibilityService {
 			mCurrentInfo.gender = String.valueOf(gender.getContentDescription());
 			Log.d(TAG, "gender: " + mCurrentInfo.gender);
 		}
-
 
 		AccessibilityNodeInfo node = findNodeByText(root, "个性签名");
 		if (node != null) {
@@ -205,13 +199,16 @@ public class HookService extends AccessibilityService {
 		// 更多按钮
 		AccessibilityNodeInfo more = findNodeById(root, "com.tencent.mm:id/ci");
 		if (more == null || !TextUtils.isEmpty(mCurrentInfo.extraInfo)) {
-			mCurrentInfo = null;
 			performGlobalAction(GLOBAL_ACTION_BACK);
 			root.recycle();
 			return;
 		}
 
-		clickedNodeById(root, "com.tencent.mm:id/ci");
+		if (TextUtils.equals("更多", more.getText())) {
+			clickedNodeById(root, "com.tencent.mm:id/ci");
+		} else {
+			performGlobalAction(GLOBAL_ACTION_BACK);
+		}
 		root.recycle();
 	}
 
@@ -236,7 +233,7 @@ public class HookService extends AccessibilityService {
 			}
 		}
 
-		mCurrentInfo = null;
+		mCurrentInfo.end = true;
 		performGlobalAction(GLOBAL_ACTION_BACK);
 	}
 
@@ -335,18 +332,7 @@ public class HookService extends AccessibilityService {
 			if (TextUtils.equals(action, HOOK_SYNC_WX_ACTION)) {
 				syncData();
 				Toast.makeText(HookService.this, "同步成功", Toast.LENGTH_SHORT).show();
-				return;
 			}
-
-			String json = intent.getStringExtra("contacts");
-			Log.d(TAG, json);
-			if (!TextUtils.isEmpty(json)) {
-				mContacts = new Gson().fromJson(json, new TypeToken<List<String>>() {
-				}.getType());
-			}
-
-			Log.d(TAG, "receive contacts, size: " + mContacts.size());
-			Toast.makeText(HookService.this, "打开成功", Toast.LENGTH_SHORT).show();
 		}
 	}
 
@@ -394,7 +380,7 @@ public class HookService extends AccessibilityService {
 			}
 		}
 
-		File file = new File(Environment.getExternalStorageDirectory(), "output.xls");
+		File file = new File(Environment.getExternalStorageDirectory(), "output_通讯录.xls");
 		// Create a path where we will place our List of objects on external storage
 		FileOutputStream os = null;
 

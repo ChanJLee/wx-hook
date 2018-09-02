@@ -6,4 +6,5 @@ public class Info {
 	public String gender;
 	public String extraInfo;
 	public int index = -1;
+	public boolean end = false;
 }
