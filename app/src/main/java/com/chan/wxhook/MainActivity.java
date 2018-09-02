@@ -47,6 +47,14 @@ public class MainActivity extends AppCompatActivity {
 				doFuck();
 			}
 		});
+
+		findViewById(R.id.sync).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				Intent intent = new Intent(HookService.HOOK_SYNC_WX_ACTION);
+				sendBroadcast(intent);
+			}
+		});
 	}
 
 	private void doFuck() {
@@ -60,11 +68,12 @@ public class MainActivity extends AppCompatActivity {
 
 		fetchContacts();
 
-		List<String> contacts = new ArrayList<>(mContacts);
-		Intent intent = new Intent(HookService.HOOK_ACTION);
+		//List<String> contacts = new ArrayList<>(mContacts);
+		List<String> contacts = new ArrayList<>();
+		contacts.add("13272435566");
+		Intent intent = new Intent(HookService.HOOK_READ_CONTACT_ACTION);
 		intent.putExtra(HookService.EXTRA_CONTACTS, new Gson().toJson(contacts));
 		sendBroadcast(intent);
-		Toast.makeText(this, "已经尝试发送任务", Toast.LENGTH_SHORT).show();
 	}
 
 	private boolean checkAccessibilityEnable() {

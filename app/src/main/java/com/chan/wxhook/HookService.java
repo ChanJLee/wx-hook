@@ -12,6 +12,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -26,7 +27,9 @@ import java.util.List;
 import java.util.Map;
 
 public class HookService extends AccessibilityService {
-	public static final String HOOK_ACTION = "com.chan.wxhook.fuck";
+	public static final String HOOK_READ_CONTACT_ACTION = "com.chan.wxhook.contact";
+	public static final String HOOK_SYNC_WX_ACTION = "com.chan.wxhook.syncData";
+
 	public static final String EXTRA_CONTACTS = "contacts";
 
 	private static final String TAG = "HookService";
@@ -41,7 +44,8 @@ public class HookService extends AccessibilityService {
 		super.onCreate();
 		mHandler = new Handler();
 		IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(HOOK_ACTION);
+		intentFilter.addAction(HOOK_READ_CONTACT_ACTION);
+		intentFilter.addAction(HOOK_SYNC_WX_ACTION);
 		registerReceiver(mHookBroadcast, intentFilter);
 	}
 
@@ -60,7 +64,8 @@ public class HookService extends AccessibilityService {
 			handleLauncherUI();
 		} else if (TextUtils.equals("com.tencent.mm.plugin.subapp.ui.friend.FMessageConversationUI", pageName)) {
 			handleFMessageConversationUI();
-		} else if (TextUtils.equals("com.tencent.mm.plugin.fts.ui.FTSAddFriendUI", pageName)) {
+		} else if (TextUtils.equals("com.tencent.mm.plugin.fts.ui.FTSAddFriendUI", pageName) ||
+				TextUtils.equals("com.tencent.mm.ui.base.p", pageName)) {
 			handleFTSAddFriendUI();
 		} else if (TextUtils.equals("com.tencent.mm.plugin.profile.ui.ContactInfoUI", pageName)) {
 			handleSearchSuccess();
@@ -71,7 +76,7 @@ public class HookService extends AccessibilityService {
 
 	/**
 	 * 微信首页
-	 * */
+	 */
 	private void handleLauncherUI() {
 		// 首页
 		Log.d(TAG, "handleLauncherUI");
@@ -91,7 +96,7 @@ public class HookService extends AccessibilityService {
 
 	/**
 	 * 进入搜索好友
-	 * */
+	 */
 	private void handleFMessageConversationUI() {
 		Log.d(TAG, "handleFMessageConversationUI");
 		if (mContacts.isEmpty()) {
@@ -109,10 +114,12 @@ public class HookService extends AccessibilityService {
 
 	/**
 	 * 搜索好友页面
-	 * */
+	 */
 	private void handleFTSAddFriendUI() {
 		Log.d(TAG, "handleFTSAddFriendUI");
 		if (mContacts.isEmpty()) {
+			syncData();
+			Toast.makeText(this, "finished", Toast.LENGTH_SHORT).show();
 			Log.d(TAG, "mContacts is empty");
 			return;
 		}
@@ -136,20 +143,15 @@ public class HookService extends AccessibilityService {
 		inputNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
 		inputNode.performAction(AccessibilityNodeInfo.ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY, arguments);
 
+		mMap.put(mCurrentInfo.contacts, mCurrentInfo);
+		Log.d(TAG, "current -> " + mCurrentInfo.contacts);
 		String targetText = "搜索:" + mCurrentInfo.contacts;
-		AccessibilityNodeInfo searchNode = findNodeByText(root, targetText);
-		if (searchNode == null) {
-			handleEnd();
-			root.recycle();
-			return;
-		}
-
 		clickedNodeByText(root, targetText, 200, true);
 	}
 
 	/**
 	 * 搜索成功
-	 * */
+	 */
 	private void handleSearchSuccess() {
 		Log.d(TAG, "handleSearchSuccess");
 		if (mCurrentInfo == null) {
@@ -162,21 +164,30 @@ public class HookService extends AccessibilityService {
 		AccessibilityNodeInfo nickname = findNodeById(root, "com.tencent.mm:id/art");
 		if (nickname != null && !TextUtils.isEmpty(nickname.getText())) {
 			mCurrentInfo.nickname = String.valueOf(nickname.getText()).replace("微信:", "");
+			Log.d(TAG, "nickname: " + mCurrentInfo.nickname);
 		}
 
 		AccessibilityNodeInfo gender = findNodeById(root, "com.tencent.mm:id/as4");
 		if (gender != null) {
 			mCurrentInfo.gender = String.valueOf(gender.getContentDescription());
+			Log.d(TAG, "gender: " + mCurrentInfo.gender);
 		}
 
-		AccessibilityNodeInfo extraInfo = findNodeById(root, "android:id/summary");
-		if (extraInfo != null) {
-			mCurrentInfo.extraInfo = String.valueOf(extraInfo.getText());
+
+		AccessibilityNodeInfo node = findNodeByText(root, "个性签名");
+		if (node != null) {
+			AccessibilityNodeInfo extraInfo = findNodeById(root, "android:id/summary");
+			if (extraInfo != null) {
+				mCurrentInfo.extraInfo = String.valueOf(extraInfo.getText());
+				Log.d(TAG, "extraInfo: " + mCurrentInfo.extraInfo);
+			}
 		}
 
+		Log.d(TAG, "click more button");
+		// 更多按钮
 		AccessibilityNodeInfo more = findNodeById(root, "com.tencent.mm:id/ci");
 		if (more == null || !TextUtils.isEmpty(mCurrentInfo.extraInfo)) {
-			handleEnd();
+			mCurrentInfo = null;
 			performGlobalAction(GLOBAL_ACTION_BACK);
 			root.recycle();
 			return;
@@ -188,7 +199,7 @@ public class HookService extends AccessibilityService {
 
 	/**
 	 * 搜索成功后点击更多按钮
-	 * */
+	 */
 	private void handleContactMoreInfo() {
 		Log.d(TAG, "handleContactMoreInfo");
 		if (mCurrentInfo == null) {
@@ -198,27 +209,21 @@ public class HookService extends AccessibilityService {
 		}
 
 		AccessibilityNodeInfo root = getRootInActiveWindow();
-		AccessibilityNodeInfo extraInfo = findNodeById(root, "com.tencent.mm:id/cxa");
+		AccessibilityNodeInfo extraInfo = findNodeByText(root, "个性签名");
 		if (extraInfo != null) {
-			mCurrentInfo.extraInfo = String.valueOf(extraInfo.getText());
-			handleEnd();
-			performGlobalAction(GLOBAL_ACTION_BACK);
-		}
-	}
-
-	private void handleEnd() {
-		Log.d(TAG, "handleEnd");
-
-		if (mCurrentInfo != null) {
-			mMap.put(mCurrentInfo.contacts, mCurrentInfo);
+			if (extraInfo.getParent() != null &&
+					(extraInfo = findNodeById(extraInfo.getParent(), "com.tencent.mm:id/cxa")) != null) {
+				mCurrentInfo.extraInfo = String.valueOf(extraInfo.getText());
+				Log.d(TAG, "extraInfo: " + mCurrentInfo.extraInfo);
+			}
 		}
 
 		mCurrentInfo = null;
-		if (!mContacts.isEmpty()) {
-			Log.d(TAG, "has more contacts");
-			return;
-		}
+		performGlobalAction(GLOBAL_ACTION_BACK);
+	}
 
+	private void syncData() {
+		Log.d(TAG, "syncData");
 		String json = new Gson().toJson(mMap);
 		File file = new File(Environment.getExternalStorageDirectory(), "output.txt");
 		BufferedWriter bufferedWriter = null;
@@ -237,6 +242,7 @@ public class HookService extends AccessibilityService {
 				e.printStackTrace();
 			}
 		}
+		Log.d(TAG, "sync data");
 	}
 
 	@Override
@@ -324,6 +330,13 @@ public class HookService extends AccessibilityService {
 				return;
 			}
 
+			String action = intent.getAction();
+			if (TextUtils.equals(action, HOOK_SYNC_WX_ACTION)) {
+				syncData();
+				Toast.makeText(HookService.this, "同步成功", Toast.LENGTH_SHORT).show();
+				return;
+			}
+
 			String json = intent.getStringExtra("contacts");
 			Log.d(TAG, json);
 			if (!TextUtils.isEmpty(json)) {
@@ -332,6 +345,7 @@ public class HookService extends AccessibilityService {
 			}
 
 			Log.d(TAG, "receive contacts, size: " + mContacts.size());
+			Toast.makeText(HookService.this, "打开成功", Toast.LENGTH_SHORT).show();
 		}
 	}
 }

@@ -11,5 +11,11 @@
         android:id="@+id/fuck"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="FUCK ME" />
+        android:text="启动服务" />
+
+    <Button
+        android:id="@+id/sync"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="强制同步数据到SDCARD" />
 </LinearLayout>
